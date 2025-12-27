@@ -184,6 +184,24 @@ with tab_insights:
             )
             st.plotly_chart(fig_kwh, use_container_width=True)
 
+        daily_df = df.groupby(df["Date"].dt.date)["Total Cost"].sum().reset_index()
+
+            fig_daily = px.bar(
+                daily_df,
+                x="Date",
+                y="Total Cost",
+                title="Daily Spending"
+            )
+            st.plotly_chart(fig_daily, use_container_width=True)
+
+            fig_type = px.pie(
+                df,
+                names="Type",
+                hole=0.5,
+                title="AC vs DC"
+            )
+            st.plotly_chart(fig_type, use_container_width=True)
+
         # --- AC vs DC Cost Comparison ---
         with col2:
             type_cost = (
@@ -241,3 +259,4 @@ with tab_data:
             edited_df.to_csv(RAWDATA, index=False)
             st.success("Data saved successfully")
             st.rerun()
+
