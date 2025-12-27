@@ -36,13 +36,49 @@ h1, h2, h3 {
 # =========================
 st.markdown("""
 # Malaysia EV Charging Tracker
-<small style="color:gray">Track charging cost, energy usage & providers</small>
+<small style="color:gray">Clean EV charging cost & usage dashboard</small>
 """, unsafe_allow_html=True)
 
 # =========================
-# INPUT SECTION
+# LOAD DATA
 # =========================
-with st.expander("➕ Add New Charging Session", expanded=True):
+if os.path.isfile(RAWDATA):
+    df = pd.read_csv(RAWDATA)
+    df["Date"] = pd.to_datetime(df["Date"])
+    df["Month"] = df["Date"].dt.to_period("M").astype(str)
+else:
+    df = pd.DataFrame(columns=[
+        "Date", "Provider", "Location",
+        "Type", "kWh", "Total Cost", "Cost_per_kWh", "Month"
+    ])
+
+# =========================
+# SIDEBAR FILTER
+# =========================
+with st.sidebar:
+    st.header("Filters")
+
+    if not df.empty:
+        months = sorted(df["Month"].unique(), reverse=True)
+        selected_month = st.selectbox("Month", ["All"] + months)
+        if selected_month != "All":
+            df = df[df["Month"] == selected_month]
+
+# =========================
+# TABS
+# =========================
+tab_log, tab_overview, tab_analysis, tab_location, tab_data = st.tabs([
+    "➕ Log Session",
+    "📊 Overview",
+    "📈 Analysis",
+    "📍 Locations",
+    "🗂 Data"
+])
+
+# =========================
+# TAB 1 — LOG SESSION
+# =========================
+with tab_log:
 
     providers = [
         "Gentari", "JomCharge", "chargEV", "Shell Recharge",
@@ -50,26 +86,21 @@ with st.expander("➕ Add New Charging Session", expanded=True):
         "DC Handal", "Home", "Other"
     ]
 
-    col_p1, col_p2 = st.columns(2)
-    with col_p1:
+    col1, col2 = st.columns(2)
+    with col1:
         selected_provider = st.selectbox("Provider", providers)
-
-    with col_p2:
-        other_name = st.text_input(
+    with col2:
+        other_provider = st.text_input(
             "Custom Provider",
-            placeholder="e.g. JusEV",
             disabled=(selected_provider != "Other")
         )
 
-    with st.form("charging_form", clear_on_submit=True):
-
-        st.markdown("#### Session Details")
-
+    with st.form("log_form", clear_on_submit=True):
         c1, c2, c3 = st.columns(3)
 
         with c1:
             date_val = st.date_input("Date")
-            location = st.text_input("Location", placeholder="Pavilion Bukit Jalil")
+            location = st.text_input("Location")
 
         with c2:
             output_type = st.radio("Type", ["AC", "DC"], horizontal=True)
@@ -85,149 +116,135 @@ with st.expander("➕ Add New Charging Session", expanded=True):
         submitted = st.form_submit_button("Save Session")
 
         if submitted:
-            final_provider = other_name.strip() if selected_provider == "Other" else selected_provider
+            provider = (
+                other_provider.strip()
+                if selected_provider == "Other"
+                else selected_provider
+            )
 
-            if selected_provider == "Other" and not final_provider:
-                st.error("Please specify the provider name.")
+            if not provider:
+                st.error("Please specify provider name.")
             else:
-                cost_per_kwh = round(total_cost / kwh_val, 3)
-
                 new_row = pd.DataFrame([{
                     "Date": pd.to_datetime(date_val),
-                    "Provider": final_provider,
+                    "Provider": provider,
                     "Location": location,
                     "Type": output_type,
                     "kWh": kwh_val,
                     "Total Cost": total_cost,
-                    "Cost_per_kWh": cost_per_kwh
+                    "Cost_per_kWh": round(total_cost / kwh_val, 3),
+                    "Month": pd.to_datetime(date_val).to_period("M").astype(str)
                 }])
 
-                if not os.path.isfile(RAWDATA):
-                    new_row.to_csv(RAWDATA, index=False)
-                else:
+                if os.path.isfile(RAWDATA):
                     new_row.to_csv(RAWDATA, mode="a", header=False, index=False)
+                else:
+                    new_row.to_csv(RAWDATA, index=False)
 
-                st.success(f"Session saved for {final_provider}")
-
-# =========================
-# LOAD DATA
-# =========================
-if not os.path.isfile(RAWDATA):
-    st.info("No data yet. Add a charging session above.")
-    st.stop()
-
-df = pd.read_csv(RAWDATA)
-df["Date"] = pd.to_datetime(df["Date"])
-df["Month"] = df["Date"].dt.to_period("M").astype(str)
+                st.success("Charging session saved")
 
 # =========================
-# SIDEBAR FILTERS
+# TAB 2 — OVERVIEW
 # =========================
-with st.sidebar:
-    st.header("Filters")
+with tab_overview:
 
-    months = sorted(df["Month"].unique(), reverse=True)
-    selected_month = st.selectbox("Month", ["All"] + months)
+    if df.empty:
+        st.info("No data available yet.")
+    else:
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Total Spent", f"{CURRENCY} {df['Total Cost'].sum():.2f}")
+        m2.metric("Avg / kWh", f"{CURRENCY} {df['Cost_per_kWh'].mean():.2f}")
+        m3.metric("Energy Used", f"{df['kWh'].sum():.1f} kWh")
+        m4.metric("Sessions", len(df))
 
-    if selected_month != "All":
-        df = df[df["Month"] == selected_month]
-
-if df.empty:
-    st.warning("No data for the selected filter.")
-    st.stop()
-
-# =========================
-# METRICS
-# =========================
-st.markdown("## Overview")
-
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("Total Spent", f"{CURRENCY} {df['Total Cost'].sum():.2f}")
-m2.metric("Avg / kWh", f"{CURRENCY} {df['Cost_per_kWh'].mean():.2f}")
-m3.metric("Energy Used", f"{df['kWh'].sum():.1f} kWh")
-m4.metric("Sessions", len(df))
+        fig = px.pie(
+            df,
+            names="Provider",
+            values="Total Cost",
+            hole=0.5,
+            title="Spending by Provider"
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# CHARTS
+# TAB 3 — ANALYSIS
 # =========================
-st.markdown("## Spending Analysis")
+with tab_analysis:
 
-col_a, col_b = st.columns(2)
+    if df.empty:
+        st.info("No data available yet.")
+    else:
+        col1, col2 = st.columns(2)
 
-with col_a:
-    daily_df = df.groupby(df["Date"].dt.date)["Total Cost"].sum().reset_index()
+        with col1:
+            daily_df = df.groupby(df["Date"].dt.date)["Total Cost"].sum().reset_index()
+            fig_daily = px.bar(
+                daily_df,
+                x="Date",
+                y="Total Cost",
+                title="Daily Spending"
+            )
+            st.plotly_chart(fig_daily, use_container_width=True)
 
-    fig_daily = px.bar(
-        daily_df,
-        x="Date",
-        y="Total Cost",
-        title="Daily Spending",
-        color_discrete_sequence=["#111111"]
-    )
-    st.plotly_chart(fig_daily, use_container_width=True)
+            fig_type = px.pie(
+                df,
+                names="Type",
+                hole=0.5,
+                title="AC vs DC"
+            )
+            st.plotly_chart(fig_type, use_container_width=True)
 
-    fig_provider = px.pie(
-        df,
-        names="Provider",
-        values="Total Cost",
-        hole=0.5,
-        title="Spending by Provider"
-    )
-    st.plotly_chart(fig_provider, use_container_width=True)
-
-with col_b:
-    fig_type = px.pie(
-        df,
-        names="Type",
-        title="Charging Type Distribution",
-        hole=0.5
-    )
-    st.plotly_chart(fig_type, use_container_width=True)
-
-    fig_scatter = px.scatter(
-        df,
-        x="kWh",
-        y="Total Cost",
-        color="Provider",
-        size="Cost_per_kWh",
-        title="Cost vs Energy",
-        labels={"Total Cost": f"Total Cost ({CURRENCY})"},
-        hover_data=["Location"]
-    )
-    st.plotly_chart(fig_scatter, use_container_width=True)
+        with col2:
+            fig_scatter = px.scatter(
+                df,
+                x="kWh",
+                y="Total Cost",
+                color="Provider",
+                size="Cost_per_kWh",
+                title="Cost vs Energy",
+                hover_data=["Location"]
+            )
+            st.plotly_chart(fig_scatter, use_container_width=True)
 
 # =========================
-# TOP LOCATIONS
+# TAB 4 — LOCATIONS
 # =========================
-st.markdown("## Top Locations")
+with tab_location:
 
-top_locations = (
-    df.groupby("Location")["Total Cost"]
-    .sum()
-    .sort_values(ascending=False)
-    .head(5)
-    .reset_index()
-)
+    if df.empty:
+        st.info("No data available yet.")
+    else:
+        top_locations = (
+            df.groupby("Location")["Total Cost"]
+            .sum()
+            .sort_values(ascending=False)
+            .head(5)
+            .reset_index()
+        )
 
-fig_top = px.bar(
-    top_locations,
-    x="Location",
-    y="Total Cost",
-    title="Top 5 Locations by Spending",
-    text="Total Cost"
-)
-fig_top.update_traces(texttemplate="%{text:.2f}", textposition="outside")
-st.plotly_chart(fig_top, use_container_width=True)
+        fig_loc = px.bar(
+            top_locations,
+            x="Location",
+            y="Total Cost",
+            text="Total Cost",
+            title="Top 5 Locations by Spending"
+        )
+        fig_loc.update_traces(texttemplate="%{text:.2f}", textposition="outside")
+        st.plotly_chart(fig_loc, use_container_width=True)
 
 # =========================
-# RAW DATA
+# TAB 5 — DATA
 # =========================
-with st.expander("View & Edit Raw Data"):
-    edited_df = st.data_editor(
-        df.sort_values("Date", ascending=False),
-        num_rows="dynamic"
-    )
+with tab_data:
 
-    if st.button("Save Changes"):
-        edited_df.to_csv(RAWDATA, index=False)
-        st.success("Changes saved successfully")
+    if df.empty:
+        st.info("No data available yet.")
+    else:
+        edited_df = st.data_editor(
+            df.sort_values("Date", ascending=False),
+            num_rows="dynamic"
+        )
+
+        if st.button("Save Changes"):
+            edited_df.to_csv(RAWDATA, index=False)
+            st.success("Data saved successfully")
