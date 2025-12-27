@@ -200,6 +200,17 @@ with tab_locations:
         fig_loc.update_traces(texttemplate="%{text:.2f}", textposition="outside")
         st.plotly_chart(fig_loc, use_container_width=True)
 
+location_stats = (
+    df[df["Location"].notna() & (df["Location"] != "")]
+    .groupby("Location")
+    .agg(
+        Sessions=("Location", "count"),
+        Total_Cost=("Total Cost", "sum"),
+        Total_kWh=("kWh", "sum")
+    )
+    .reset_index()
+)
+
 # =========================
 # TAB 5 — DATA
 # =========================
@@ -212,3 +223,4 @@ with tab_data:
             edited_df.to_csv(RAWDATA, index=False)
             st.success("Data saved successfully")
             st.rerun()
+
