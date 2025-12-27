@@ -4,7 +4,7 @@ import plotly.express as px
 import os
 
 # --- Configuration ---
-RAWDATA = 'ev_charging_log_my.csv'
+RAWDATA = 'rawdata.csv'
 CURRENCY = "MYR"
 
 st.set_page_config(page_title="Malaysia EV Tracker", page_icon="⚡", layout="wide")
@@ -147,5 +147,6 @@ if os.path.isfile(RAWDATA):
 
 else:
     st.info("Awaiting data... Log a session above to see the analysis!")
+
 
 
