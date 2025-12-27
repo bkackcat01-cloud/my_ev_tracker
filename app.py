@@ -72,6 +72,7 @@ with st.form("charging_form", clear_on_submit=True):
 if os.path.isfile(FILE_NAME):
     df = pd.read_csv(FILE_NAME)
     df['Date'] = pd.to_datetime(df['Date'])
+    df['Location'] = df['Location'].astype(str)  # 确保 Location 是字符串
 
     # --- Month Selector ---
     df['Month'] = df['Date'].dt.to_period('M').astype(str)
@@ -121,7 +122,7 @@ if os.path.isfile(FILE_NAME):
     st.divider()
     st.subheader("📍 Top 5 Locations by Total Cost")
     top_locations = df[df['Location'].notna()].groupby("Location")["Total Cost"].sum().sort_values(ascending=False).head(5).reset_index()
-        fig_top_locations = px.bar(
+    fig_top_locations = px.bar(
         top_locations,
         x="Location",
         y="Total Cost",
@@ -143,4 +144,3 @@ if os.path.isfile(FILE_NAME):
 
 else:
     st.info("Awaiting data... Log a session above to see the analysis!")
-
