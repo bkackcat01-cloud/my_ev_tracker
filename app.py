@@ -87,23 +87,23 @@ with tab_log:
 
         submitted = st.form_submit_button("Save Session")
         if submitted:
-            provider = other_provider.strip() if selected_provider == "Other" else selected_provider
-            if not provider:
-                st.error("Please specify provider name.")
-            else:
-                new_row = pd.DataFrame([{
-                    "Date": pd.to_datetime(date_val),
-                    "Provider": provider,
-                    "Location": location.strip(),
-                    "Type": output_type,
-                    "kWh": kwh_val,
-                    "Total Cost": total_cost,
-                    "Cost_per_kWh": round(total_cost/kwh_val,3) if kwh_val>0 else 0,
-                    "Month": str(pd.to_datetime(date_val).to_period("M"))
-                }])
-                new_row.to_csv(RAWDATA, mode="a", header=False, index=False)
-                st.success("Charging session saved")
-                st.experimental_rerun()
+    provider = other_provider.strip() if selected_provider == "Other" else selected_provider
+    if not provider:
+        st.error("Please specify provider name.")
+    else:
+        new_row = pd.DataFrame([{
+            "Date": pd.to_datetime(date_val),
+            "Provider": provider,
+            "Location": location.strip(),
+            "Type": output_type,
+            "kWh": kwh_val,
+            "Total Cost": total_cost,
+            "Cost_per_kWh": round(total_cost / kwh_val, 3),
+            "Month": str(pd.to_datetime(date_val).to_period("M"))
+        }])
+        new_row.to_csv(RAWDATA, mode="a", header=False, index=False)
+        st.success("Charging session saved")
+        st.runtime.scriptrunner.script_request_rerun()
 
 # =========================
 # TAB 2 — OVERVIEW
