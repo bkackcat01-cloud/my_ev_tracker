@@ -5,6 +5,28 @@ import pydeck as pdk
 from geopy.geocoders import Nominatim
 import time
 
+# =========================
+# ENSURE CSV EXISTS
+# =========================
+CSV_FILE = "ev_charging_log_my.csv"
+
+CSV_COLUMNS = [
+    "Date",
+    "Provider",
+    "Location",
+    "Type",
+    "kWh",
+    "Total Cost",
+    "Cost_per_kWh",
+    "Latitude",
+    "Longitude",
+    "Month"
+]
+
+if not os.path.isfile(CSV_FILE):
+    pd.DataFrame(columns=CSV_COLUMNS).to_csv(CSV_FILE, index=False)
+
+
 # ===============================
 # CONFIG
 # ===============================
@@ -206,3 +228,4 @@ with tab_location:
         )
 
         st.pydeck_chart(deck, use_container_width=True)
+
