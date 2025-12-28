@@ -1,0 +1,5 @@
+geopy
+pydeck
+streamlit
+pandas
+plotly
