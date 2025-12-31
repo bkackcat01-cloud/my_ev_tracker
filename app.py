@@ -17,7 +17,7 @@ st.set_page_config(
 )
 
 # Set Plotly map style
-px.set_mapbox_access_token(os.environ.get("MAPBOX_TOKEN", ""))
+# px.set_mapbox_access_token(os.environ.get("MAPBOX_TOKEN", ""))
 px.defaults.template = "simple_white"
 
 # =========================
