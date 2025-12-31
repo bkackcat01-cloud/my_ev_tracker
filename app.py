@@ -284,41 +284,43 @@ with tab_insights:
 # =========================
 with tab_location:
     st.header("Location Analysis")
+    
+    # Filter rows that have valid coordinates
     map_df = filtered_df.dropna(subset=["Latitude", "Longitude"])
     
+    # Ensure coordinates are float numbers
+    map_df["Latitude"] = pd.to_numeric(map_df["Latitude"], errors='coerce')
+    map_df["Longitude"] = pd.to_numeric(map_df["Longitude"], errors='coerce')
+    map_df = map_df.dropna(subset=["Latitude", "Longitude"])
+
     if map_df.empty:
-        st.warning("No coordinates found.")
+        st.warning("No coordinates found to display on map.")
     else:
         location_agg = map_df.groupby(["Location", "Latitude", "Longitude"]).agg(
             Total_Sessions=("Date", "count"),
             Total_Spent=("Total Cost", "sum")
         ).reset_index()
 
+        # FIX: We use 'open-street-map' style directly and remove the access token requirement
         fig_map = px.scatter_mapbox(
             location_agg,
-            lat="Latitude", lon="Longitude",
-            size="Total_Sessions", size_max=30,
-            color="Total_Spent", color_continuous_scale=px.colors.sequential.Plasma,
+            lat="Latitude",
+            lon="Longitude",
+            size="Total_Sessions",
+            size_max=20,
+            color="Total_Spent",
+            color_continuous_scale=px.colors.sequential.Plasma,
             hover_name="Location",
             zoom=10,
-            title=f"Charging Locations ({len(location_agg)} sites)"
+            mapbox_style="open-street-map" # This makes it free/no-token
         )
-        fig_map.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":40,"l":0,"b":0})
+        
+        fig_map.update_layout(
+            margin={"r":0,"t":0,"l":0,"b":0},
+            showlegend=False
+        )
+        
         st.plotly_chart(fig_map, use_container_width=True)
-    
-    st.divider()
-    # Top Locations Bar Chart
-    named_loc_df = filtered_df[filtered_df["Location"].notna() & (filtered_df["Location"].str.strip() != "")]
-    if not named_loc_df.empty:
-        top_locations = (
-            named_loc_df.groupby("Location")["Total Cost"]
-            .sum().sort_values(ascending=False)
-            .head(5).reset_index()
-        )
-        fig_loc = px.bar(top_locations, x="Total Cost", y="Location", text="Total Cost", orientation='h')
-        fig_loc.update_traces(texttemplate="%{text:.2f}", textposition="outside")
-        fig_loc.update_layout(yaxis_title=None)
-        st.plotly_chart(fig_loc, use_container_width=True)
 
 # =========================
 # TAB 5 — DATA (EDIT)
